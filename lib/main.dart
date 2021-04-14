@@ -43,16 +43,6 @@ class HomePage extends StatelessWidget {
               },
               child: Text('start'),
             ),
-            // FutureBuilder<String>(
-            //   future: _filePath(),
-            //   builder: (context, snap) {
-            //     if (snap.data != null) {
-            //       return Image.file(File(snap.data));
-            //     } else {
-            //       return Container();
-            //     }
-            //   },
-            // ),
           ],
         ),
       ),
@@ -65,13 +55,29 @@ class HomePage extends StatelessWidget {
   }) async {
     final directory = await getApplicationDocumentsDirectory();
     String path = directory.path;
-    await Future.wait(assets.map(
-      (asset) => downloadImages(
-        context: context,
-        path: path,
-        asset: asset,
-      ),
-    ));
+    int i = 0;
+
+    // おそらくクラッシュの原因はメモリー不足なので、
+    // 1回に全ての画像を処理するのではなく、下記の枚数ずつ処理してこまめにメモリーを開放してあげる
+    const processPerIteration = 50;
+
+    while (i * processPerIteration < assets.length) {
+      final isLastLoop =
+          (i * processPerIteration + processPerIteration) > assets.length;
+
+      // このループで処理する画像一覧
+      final processingList = assets.sublist(i * processPerIteration,
+          isLastLoop ? null : i * processPerIteration + processPerIteration);
+
+      await Future.wait(processingList.map(
+        (asset) => downloadImages(
+          context: context,
+          path: path,
+          asset: asset,
+        ),
+      ));
+      i++;
+    }
     // todo: すべての画像のダウンロードを完了した時の処理。
   }
 
