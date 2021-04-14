@@ -29,34 +29,39 @@ class _WebSwipeState extends State<WebSwipe> {
   WebViewController? _controller;
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: GestureDetector(
-        onHorizontalDragEnd: (details) async {
-          if (details.primaryVelocity! < 0) {
-            // 右スワイプだった時は何もしない
-            return;
-          }
+    return WillPopScope(
+      onWillPop: () {
+        return Future(() => false);
+      },
+      child: Scaffold(
+        body: GestureDetector(
+          onHorizontalDragEnd: (details) async {
+            if (details.primaryVelocity! <= 0) {
+              // 右スワイプだった時は何もしない
+              return;
+            }
 
-          if (_controller == null) {
-            Navigator.of(context).pop();
-            return;
-          }
-          final canGoBack = await _controller!.canGoBack();
-          if (canGoBack) {
-            await _controller!.goBack();
-          } else {
-            Navigator.of(context).pop();
-          }
-        },
-        child: WebView(
-          initialUrl: 'https://yahoo.co.jp',
-          onWebViewCreated: (controller) {
-            _controller = controller;
+            if (_controller == null) {
+              Navigator.of(context).pop();
+              return;
+            }
+            final canGoBack = await _controller!.canGoBack();
+            if (canGoBack) {
+              await _controller!.goBack();
+            } else {
+              Navigator.of(context).pop();
+            }
           },
-          gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{}..add(
-              Factory<VerticalDragGestureRecognizer>(
-                  () => VerticalDragGestureRecognizer()),
-            ),
+          child: WebView(
+            initialUrl: 'https://yahoo.co.jp',
+            onWebViewCreated: (controller) {
+              _controller = controller;
+            },
+            gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{}..add(
+                Factory<VerticalDragGestureRecognizer>(
+                    () => VerticalDragGestureRecognizer()),
+              ),
+          ),
         ),
       ),
     );
