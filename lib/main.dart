@@ -64,6 +64,14 @@ class HomePage extends StatelessWidget {
               },
               child: const Text('start'),
             ),
+            FutureBuilder<Directory>(
+                future: getApplicationDocumentsDirectory(),
+                builder: (context, snapshot) {
+                  if (snapshot.data == null) {
+                    return Container();
+                  }
+                  return Image.file(File('${snapshot.data!.path}/'));
+                }),
           ],
         ),
       ),
@@ -137,7 +145,7 @@ class HomePage extends StatelessWidget {
     final file = File('$path/$imagePathString');
     final thumbFile = File('$path/$thumbPathString');
 
-    await file.writeAsBytes(image!);
+    await file.writeAsBytes(image);
     await thumbFile.writeAsBytes(compressedThumbImage);
 
     return ImageNameSet(
