@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
 import 'dart:io';
 import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
 
 import 'package:flutter/cupertino.dart';
 import 'package:image/db_provider.dart';
@@ -8,8 +9,24 @@ import 'package:path_provider/path_provider.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 
+// ignore_for_file: public_member_api_docs
+
 void main() {
   runApp(MyApp());
+}
+
+/// 画像データを持つだけのオブジェクト
+class ImageNameSet {
+  ImageNameSet({
+    required this.imagePathString,
+    required this.thumbnailPathString,
+  });
+
+  /// 画像の保存先情報
+  final String imagePathString;
+
+  /// サムネイルの保存先情報
+  final String thumbnailPathString;
 }
 
 class MyApp extends StatelessWidget {
@@ -37,12 +54,15 @@ class HomePage extends StatelessWidget {
               onPressed: () async {
                 await PhotoManager.requestPermission();
                 final list = await PhotoManager.getAssetPathList();
-                final data = list
-                    .first; // 1st album in the list, typically the "Recent" or "All" album
+                final data = list.first;
                 final assets = await data.assetList;
-                await downloadImagesInit(context: context, assets: assets);
+                await downloadImagesInit(
+                  context: context,
+                  assets: assets,
+                  categoryId: 1,
+                );
               },
-              child: Text('start'),
+              child: const Text('start'),
             ),
           ],
         ),
@@ -51,13 +71,13 @@ class HomePage extends StatelessWidget {
   }
 
   Future<void> downloadImagesInit({
-    BuildContext context,
-    int categoryId,
-    List<AssetEntity> assets,
+    required BuildContext context,
+    required int categoryId,
+    required List<AssetEntity> assets,
   }) async {
     final directory = await getApplicationDocumentsDirectory();
-    String path = directory.path;
-    int i = 0;
+    final path = directory.path;
+    var i = 0;
 
     // おそらくクラッシュの原因はメモリー不足なので、
     // 1回に全ての画像を処理するのではなく、下記の枚数ずつ処理してこまめにメモリーを開放してあげる
@@ -71,7 +91,7 @@ class HomePage extends StatelessWidget {
       final processingList = assets.sublist(i * processPerIteration,
           isLastLoop ? null : i * processPerIteration + processPerIteration);
 
-      await Future.wait(processingList.map(
+      final imageNameSets = await Future.wait(processingList.map(
         (asset) => downloadImages(
           context: context,
           path: path,
@@ -79,44 +99,54 @@ class HomePage extends StatelessWidget {
           asset: asset,
         ),
       ));
+
+      // ここでデータベースへの挿入を行う
+      // データベースに格納
+      for (final imageNameSet in imageNameSets) {
+        await insertContentsAndImages(
+          context: context,
+          categoryId: categoryId,
+          imagePathString: imageNameSet.imagePathString,
+          thumbPathString: imageNameSet.thumbnailPathString,
+        );
+      }
+
       i++;
     }
-
-    // ここでデータベースへの挿入を行う
 
     // todo: すべての画像のダウンロードを完了した時の処理。
   }
 
-  Future<void> downloadImages({
-    BuildContext context,
-    String path,
-    int categoryId,
-    AssetEntity asset,
+  Future<ImageNameSet> downloadImages({
+    required BuildContext context,
+    required String path,
+    required int categoryId,
+    required AssetEntity asset,
   }) async {
-    String imageName = await asset.titleAsync;
-    Uint8List image = await asset.thumbDataWithSize(2000, 2000);
-    Uint8List compressedThumbImage = await getCompressedThumbImage(image);
+    final imageName = await asset.titleAsync;
+    final image = await asset.thumbDataWithSize(2000, 2000);
+    if (image == null) {
+      throw Error();
+    }
+    final compressedThumbImage = await getCompressedThumbImage(image);
 
-    String imagePathString = '${DateTime.now().toIso8601String()}_$imageName';
-    String thumbPathString =
+    final imagePathString = '${DateTime.now().toIso8601String()}_$imageName';
+    final thumbPathString =
         '${DateTime.now().toIso8601String()}_${imageName}_thumb';
 
-    File file = File('$path/$imagePathString');
-    File thumbFile = File('$path/$thumbPathString');
+    final file = File('$path/$imagePathString');
+    final thumbFile = File('$path/$thumbPathString');
 
-    await file.writeAsBytes(image);
+    await file.writeAsBytes(image!);
     await thumbFile.writeAsBytes(compressedThumbImage);
 
-    // データベースに格納
-    await insertContentsAndImages(
-      context: context,
-      categoryId: categoryId,
+    return ImageNameSet(
       imagePathString: imagePathString,
-      thumbPathString: thumbPathString,
+      thumbnailPathString: thumbPathString,
     );
   }
 
-  Future<Uint8List> getCompressedThumbImage(image) async {
+  Future<Uint8List> getCompressedThumbImage(Uint8List image) async {
     if (image.lengthInBytes > 10000000) {
       return FlutterImageCompress.compressWithList(image,
           minWidth: 250,
@@ -139,10 +169,10 @@ class HomePage extends StatelessWidget {
   }
 
   Future<int> insertContentsAndImages({
-    BuildContext context,
-    int categoryId,
-    String imagePathString,
-    String thumbPathString,
+    required BuildContext context,
+    required int categoryId,
+    required String imagePathString,
+    required String thumbPathString,
   }) async {
     var contents = ContentsTable(
       categoryId: categoryId,

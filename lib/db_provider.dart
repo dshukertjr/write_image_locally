@@ -4,19 +4,21 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
+// ignore_for_file: public_member_api_docs
+
 class DBProvider {
   DBProvider._();
 
   static final DBProvider db = DBProvider._();
 
-  Database _databaseData;
+  Database? _databaseData;
 
   Future<Database> get database async {
     if (_databaseData != null) {
-      return _databaseData;
+      return _databaseData!;
     } else {
       _databaseData = await initDB();
-      return _databaseData;
+      return _databaseData!;
     }
   }
 
@@ -84,22 +86,23 @@ class DBProvider {
 }
 
 class ContentsTable {
-  final int id;
+  ContentsTable({
+    this.id,
+    required this.categoryId,
+    required this.initImagePath,
+    required this.multiple,
+    this.memo,
+    required this.createdAt,
+    this.updateAt,
+  });
+
+  final int? id;
   final int categoryId;
   final String initImagePath;
   final String multiple;
-  final String memo;
+  final String? memo;
   final String createdAt;
-  final String updateAt;
-
-  ContentsTable(
-      {this.id,
-      this.categoryId,
-      this.initImagePath,
-      this.multiple,
-      this.memo,
-      this.createdAt,
-      this.updateAt});
+  final String? updateAt;
 
   Map<String, dynamic> insertToMap() {
     return {
@@ -123,22 +126,23 @@ class ContentsTable {
 }
 
 class ImagesTable {
-  final int id;
+  ImagesTable({
+    this.id,
+    required this.contentId,
+    required this.path,
+    required this.thumbPath,
+    required this.orderIndex,
+    required this.createdAt,
+    this.updatedAt,
+  });
+
+  final int? id;
   final int contentId;
   final String path;
   final String thumbPath;
   final int orderIndex;
   final String createdAt;
-  final String updatedAt;
-
-  ImagesTable(
-      {this.id,
-      this.contentId,
-      this.path,
-      this.thumbPath,
-      this.orderIndex,
-      this.createdAt,
-      this.updatedAt});
+  final String? updatedAt;
 
   Map<String, dynamic> insertToMap() {
     return {
